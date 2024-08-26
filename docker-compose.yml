@@ -1,0 +1,57 @@
+name: violence-project-app
+services:
+  db:
+    image: postgres:latest
+    container_name: db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - ${POSTGRES_PORT}:${POSTGRES_PORT}
+    networks:
+      - vp-network
+    volumes:
+      - ./backend/db/init_db:/docker-entrypoint-initdb.d
+      - db-data:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.backend
+    container_name: api
+    depends_on:
+      - db
+    command: ["./wait-for-it.sh", "postgres:5432", "--", "npm", "start"]
+    environment:
+      - PORT=3001
+    networks:
+      - vp-network
+    ports:
+      - ${API_PORT}:${API_PORT}
+    volumes:
+      - ./backend:/usr/src/app
+      - ./backend/sql_imports:/usr/src/app/sql_imports
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.frontend
+    container_name: frontend
+    environment:
+      - REACT_APP_PORT=${REACT_APP_PORT}
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true
+    ports:
+      - ${REACT_APP_PORT}:${REACT_APP_PORT}
+    volumes:
+      - ./frontend:/usr/src/app
+    networks:
+      - vp-network
+
+networks:
+  vp-network:
+    driver: bridge
+
+volumes:
+  db-data:
